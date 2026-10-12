@@ -1,50 +1,101 @@
-# QueueLess - how to put this on your computer
+QueueLess
 
-## A. Backend (Spring Boot)
+A fullstack queue and token management system that helps people book a place in line and avoid standing in long queues.
 
-1. In VS Code open your folder  D:\projects\queueless  (the parent folder).
-2. Inside  backend\src\main\java\com\queueless  DELETE everything that is there
-   (for example the old folder named "backend" that contains BackendApplication.java).
-   Also DELETE the folder  backend\src\test  (we do not need the auto-made test).
-3. Copy the folders from this zip into your project:
-      backend\src\main\java\com\queueless\*     ->  same place in your project
-      backend\src\main\resources\application.properties  ->  replace your file
-   After copying, this file must exist:  backend\src\main\java\com\queueless\BackendApplication.java
-4. Open backend\pom.xml and add the dependencies written in backend\pom-additions.txt
-5. Open application.properties and write your real MySQL password in spring.datasource.password
-6. Make sure the database exists:   CREATE DATABASE queueless_db;
-7. In the terminal:
-      cd backend
-      .\mvnw spring-boot:run
-   Wait for "Started BackendApplication" and the line "First admin created".
-8. Check  http://localhost:8080/api/test  ->  QueueLess backend is running
+Why I built it: I once lost two days at my college collecting certificates, because of long queues in the morning and afternoon and counters closing for lunch. QueueLess lets students join a service queue from their phone, see their position and estimated waiting time, and get a reminder before their turn.
 
-## B. Frontend (React)
+Features
 
-1. Copy the  frontend  folder from this zip next to  backend  (D:\projects\queueless\frontend).
-2. In a NEW terminal:
-      cd frontend
-      npm install
-      npm run dev
-3. Open  http://localhost:3000
+Student
 
-## C. Test the full flow
+Register and log in
+Pick a service, join its queue and get a token number
+See live position and estimated waiting time (updates every 5 seconds)
+Cancel a waiting token
+In-app notification and email about 10 minutes before the turn, and when it is their turn
 
-1. Log in as admin:  admin@queueless.com / admin123
-2. Add a service (example: Fee Counter, 5 minutes). Add a staff member. Assign the staff to the service.
-3. Open a second browser (or a private window) and register 3 students. Each one joins the queue.
-   The 3rd student has 2 people ahead, so the estimated wait is 10 minutes and the
-   10-minute reminder arrives within 1 minute (check the notifications box).
-4. Log in as the staff member (another browser). Press "Call next", then "Mark completed".
-   The student's screen updates by itself every 5 seconds.
+Staff
 
-## D. Email reminders (optional)
+See the services assigned to them
+Call the next person, mark them completed, or skip them if they do not arrive
+Personal work history with a "Clear history" option
 
-Without setup the reminder is only printed in the backend console. To send real emails with Gmail:
-turn on 2-step verification, create an "App password", then in the SAME terminal where you start the backend:
-      $env:MAIL_USERNAME="yourgmail@gmail.com"
-      $env:MAIL_PASSWORD="your-16-letter-app-password"
-      .\mvnw spring-boot:run
+Admin
 
-## E. Before you push to GitHub
-Remove your MySQL password from application.properties and never write the Gmail app password in any file.
+Create services and set the average service time
+Create staff accounts and assign staff to services
+Watch live queues
+See full work history and a performance summary of all staff
+
+Rules built in: one active token per person per service, no duplicate token numbers even when two people join at the same moment (database row lock plus unique constraint), role-based access on every API.
+
+Tech stack
+Part	Technology
+Backend	Java 21, Spring Boot, Spring Data JPA, Spring Security
+Authentication	JWT (jjwt), BCrypt password hashing
+Database	MySQL
+Frontend	React (Vite), React Router
+Updates	Polling every 5 seconds, scheduled job every minute for reminders
+Folder structure
+queueless/
+├── backend/    Spring Boot (model, repository, service, controller, dto, security)
+└── frontend/   React (pages, components)
+How it works
+React page  ->  Controller  ->  Service (rules)  ->  Repository  ->  MySQL
+Estimated wait = (people ahead + person being served) x average service minutes
+A scheduler runs every minute and sends a reminder once when the estimated wait is 10 minutes or less
+Run it on your computer
+
+Requirements: JDK 21, MySQL, Node.js
+
+Create the database:
+sql
+   CREATE DATABASE queueless_db;
+In backend/src/main/resources/, create a file named local.properties (it is ignored by Git) and write your own values:
+properties
+   spring.datasource.url=jdbc:mysql://localhost:3306/queueless_db
+   spring.datasource.username=root
+   spring.datasource.password=YOUR_PASSWORD
+   jwt.secret=put-a-long-random-text-of-at-least-32-characters-here
+
+(Change the port in the URL if your MySQL does not use 3306.) 3. Start the backend:
+
+   cd backend
+   ./mvnw spring-boot:run
+
+On the first start it creates the tables and one admin account: admin@queueless.com / admin123. Change this password for any real use. 4. Start the frontend in a new terminal:
+
+   cd frontend
+   npm install
+   npm run dev
+Open http://localhost:3000
+
+Optional email reminders (Gmail): create a Gmail app password and set the environment variables MAIL_USERNAME and MAIL_PASSWORD before starting the backend. Without them, emails are only printed in the backend console.
+
+Main APIs
+Role	APIs
+Public	POST /api/auth/register, POST /api/auth/login
+Student	GET /api/services, POST /api/queue/join/{serviceId}, GET /api/queue/my, PUT /api/queue/cancel/{entryId}
+Staff	GET /api/staff/services, PUT /api/staff/services/{id}/call-next, PUT /api/staff/entries/{id}/complete, PUT /api/staff/entries/{id}/skip, GET /api/staff/history, PUT /api/staff/history/clear
+Admin	POST /api/admin/services, POST /api/admin/staff, PUT /api/admin/services/{id}/assign-staff, GET /api/admin/queue/{serviceId}, GET /api/admin/history
+Screenshots
+
+<img width="1365" height="717" alt="image" src="https://github.com/user-attachments/assets/6c4754d1-d779-425c-9b6f-45557a85100e" />
+
+<img width="1365" height="724" alt="image" src="https://github.com/user-attachments/assets/2c41618c-8bfc-4059-9943-9eafcfd06cac" />
+
+<img width="1193" height="632" alt="image" src="https://github.com/user-attachments/assets/ace6f86a-aac7-4493-b90e-2181bc52219d" />
+
+<img width="1365" height="724" alt="image" src="https://github.com/user-attachments/assets/4dd1628a-8e31-4d11-814a-837b4f491651" />
+
+
+Planned improvements
+Counter opening hours and lunch break handling
+Documents checklist for each service
+Admin analytics (busiest hours, average waiting time)
+SMS / WhatsApp / call reminders
+Live "Now serving" display screen
+Deployment and automated tests
+Author
+
+Venuvardhan
